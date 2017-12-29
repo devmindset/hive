@@ -1,0 +1,37 @@
+create temporary table stockv_temp                          
+(symbol String, trnTime String, amount int)         
+row format delimited fields terminated by ','; 
+
+load data local inpath './practice/input/hive/stockvalue.txt' overwrite into table stockv_temp;
+
+create table stockv_bucketed                                    
+(symbol String, trnTime String, price int)                  
+partitioned by (month String)                                     
+sorted by (symbol); 
+
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+insert overwrite table stockv_bucketed partition (month)
+select symbol, trnTime, amount, to_date(trnTime)
+from stockv_temp;  
+
+
+create view stock_filtered
+as
+select stock.symbol, stock.price,  stock.month
+from stockv_bucketed stock left join 
+(select a.symbol, a.price,  month
+from stockv_bucketed a Left semi join 
+(select symbol, max(distinct price) maxprice
+from stockv_bucketed
+group by symbol) max_a
+on (a.symbol=max_a.symbol and a.price=max_a.maxprice)) date_a
+on (stock.symbol=date_a.symbol)
+where datediff(stock.month,date_a.month) <= 0
+order by stock.symbol,stock.month;
+
+
+select symbol, (max(price)-min(price)) profit
+from stock_filtered
+group by symbol order by profit DESC limit 2;

@@ -1,0 +1,3 @@
+Stock [symbol=C, date=1430159400000, active=216]	216
+Stock [symbol=D, date=1430159400000, active=190]	190
+Stock [symbol=B, date=1430159400000, active=190]	190

@@ -1,0 +1,86 @@
+create temporary table stocks_temp                          
+(symbol String, trnTime String, sellq int, buyq int)         
+row format delimited fields terminated by ','; 
+
+load data local inpath './practice/input/hive/stockdata.txt' overwrite into table stocks_temp;
+
+ select * from stocks_temp;
+
+create table stocks_bucketed                                    
+(symbol String, hour int, sellq int, buyq int)                  
+partitioned by (day String)                                     
+clustered by (hour) sorted by (symbol) into 12 buckets;   
+
+set hive.enforce.bucketing = true;
+set hive.enforce.sorting = true;  
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+
+insert overwrite table stocks_bucketed partition(day)
+select symbol, hour(trnTime), sellq, buyq, to_date(trnTime) 
+from stocks_temp;
+
+
+dfs -ls /user/hive/warehouse/stocks_bucketed
+
+Order By for each day, hour
+---------------------------------------
+select max(totalvol) active, hour, day
+from 
+(select symbol, sum(sellq+buyq) totalvol, hour, day from stocks_bucketed
+group by hour, day, symbol) a
+group by hour, day 
+order by active desc; 
+
+Sort By for each day, hour
+---------------------------------------
+select max(totalvol) active, hour, day
+from 
+(select symbol, sum(sellq+buyq) totalvol, hour, day from stocks_bucketed
+group by hour, day, symbol) a
+group by hour, day 
+sort by active desc; 
+
+Sort By for each day, hour
+---------------------------------------
+select max(totalvol) active, hour, day
+from 
+(select symbol, sum(sellq+buyq) totalvol, hour, day from stocks_bucketed
+group by hour, day, symbol) a
+group by hour, day 
+sort by active desc; 
+
+
+For fixed day
+----------------
+select max(totalvol) active, hour, day
+from 
+(select symbol, sum(sellq+buyq) totalvol, hour, day from stocks_bucketed
+where day=date_sub(to_date(from_unixtime(unix_timestamp())),1)
+group by hour,day, symbol) a
+group by hour, day 
+sort by active desc; 
+
+
+Top 5 records For fixed day, per hour
+---------------------------------
+select symbol, totalvol, hour, day from
+(select symbol, sum(sellq+buyq) totalvol, hour, day from stocks_bucketed
+where day=date_sub(to_date(from_unixtime(unix_timestamp())),1)
+group by hour,day, symbol
+sort by totalvol desc) a
+limit 4; 
+
+
+select symbol, min(value), max(value),day from stocks_bucketed
+where day=date_sub(to_date(from_unixtime(unix_timestamp())),1)
+group by symbol
+
+
+
+
+
+     
+
+
